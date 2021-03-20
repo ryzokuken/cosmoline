@@ -7,3 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rand = "0.7"
+ed25519-dalek = "1.0.1"
+dirs = "3.0.1"
+clap = { version = "3.0.0-beta.2", features = ["yaml"] }
+toml = "0.5.8"
+json = "0.12.4"
+base64 = "0.13.0"
+regex = "1.4.5"

@@ -1,0 +1,11 @@
+name: cosmoline
+version: 0.1.0
+author: Ujjwal Sharma <ryzokuken@disroot.org>
+about: SSB daemon written in Rust
+args:
+    - config:
+        short: c
+        long: config
+        value_name: FILE
+        about: Sets a custom config file
+        takes_value: true
