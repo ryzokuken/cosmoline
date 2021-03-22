@@ -1,5 +1,5 @@
 use clap::{load_yaml, App};
-use ed25519_dalek::{ExpandedSecretKey, Keypair, PublicKey};
+use ed25519_dalek::{SecretKey, PublicKey, Keypair};
 use rand::rngs::OsRng;
 use regex::Regex;
 
@@ -8,10 +8,6 @@ use std::path::PathBuf;
 
 use std::io::prelude::*;
 
-struct ExpandedKeypair {
-    public: PublicKey,
-    secret: ExpandedSecretKey,
-}
 
 fn main() {
     let options = load_yaml!("options.yaml");
@@ -65,19 +61,12 @@ fn main() {
             .unwrap()
             .replace(".ed25519", "");
         let privkey = base64::decode(privkey).unwrap();
-        let privkey = ExpandedSecretKey::from_bytes(privkey.as_slice()).unwrap();
+        let privkey = SecretKey::from_bytes(&privkey[00..32]).unwrap();
 
-        ExpandedKeypair {
-            public: pubkey,
-            secret: privkey,
-        }
+        Keypair { public: pubkey, secret: privkey }
     } else {
         let mut csprng = OsRng {};
-        let keypair = Keypair::generate(&mut csprng);
-        ExpandedKeypair {
-            public: keypair.public,
-            secret: ExpandedSecretKey::from(&keypair.secret),
-        }
+        Keypair::generate(&mut csprng)
         // TODO: write this keypair to a fresh secret file
     };
     println!("{:?}", keypair.public.to_bytes());
