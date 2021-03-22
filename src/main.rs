@@ -12,6 +12,7 @@ use std::io::prelude::*;
 trait SSBKeypair {
     fn to_json(&self) -> JsonValue;
     fn from_json(obj: JsonValue) -> Self;
+    fn read_or_generate(path: PathBuf) -> Self;
 }
 
 impl SSBKeypair for Keypair {
@@ -47,6 +48,21 @@ impl SSBKeypair for Keypair {
 
         Keypair { public: pubkey, secret: privkey }
     }
+
+    fn read_or_generate(path: PathBuf) -> Self {
+        if path.exists() {
+            let mut secret_file = File::open(path).unwrap();
+            let mut secret = String::new();
+            secret_file.read_to_string(&mut secret).unwrap();
+            let re = Regex::new(r"\s*#[^\n]*").unwrap();
+            let secret = re.replace_all(secret.as_str(), "");
+            SSBKeypair::from_json(json::parse(&secret).unwrap())
+        } else {
+            let mut csprng = OsRng {};
+            Keypair::generate(&mut csprng)
+            // TODO: write this keypair to a fresh secret file
+        }
+    }
 }
 
 fn main() {
@@ -69,18 +85,6 @@ fn main() {
         Some(path) => PathBuf::from(path.as_str().unwrap()),
         None => dirs::home_dir().unwrap().join(".cosmoline"),
     };
-    let secret_path = path.join("secret");
-    let keypair = if secret_path.exists() {
-        let mut secret_file = File::open(secret_path).unwrap();
-        let mut secret = String::new();
-        secret_file.read_to_string(&mut secret).unwrap();
-        let re = Regex::new(r"\s*#[^\n]*").unwrap();
-        let secret = re.replace_all(secret.as_str(), "");
-        SSBKeypair::from_json(json::parse(&secret).unwrap())
-    } else {
-        let mut csprng = OsRng {};
-        Keypair::generate(&mut csprng)
-        // TODO: write this keypair to a fresh secret file
-    };
+    let keypair = Keypair::read_or_generate(path.join("secret"));
     println!("{}", keypair.to_json().pretty(2));
 }
