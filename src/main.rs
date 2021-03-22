@@ -2,12 +2,52 @@ use clap::{load_yaml, App};
 use ed25519_dalek::{SecretKey, PublicKey, Keypair};
 use rand::rngs::OsRng;
 use regex::Regex;
+use json::{object, JsonValue};
 
 use std::fs::File;
 use std::path::PathBuf;
 
 use std::io::prelude::*;
 
+trait SSBKeypair {
+    fn to_json(&self) -> JsonValue;
+    fn from_json(obj: JsonValue) -> Self;
+}
+
+impl SSBKeypair for Keypair {
+    fn to_json(&self) -> JsonValue {
+        let pubstring = base64::encode(self.public.to_bytes());
+        let privstring = base64::encode([self.secret.to_bytes(), self.public.to_bytes()].concat());
+        object! {
+            curve: "ed25519",
+            public: format!("{}.ed25519", pubstring),
+            private: format!("{}.ed25519", privstring),
+            id: format!("@{}.ed25519", pubstring)
+        }
+    }
+
+    fn from_json(obj: JsonValue) -> Self {
+        if obj["curve"].as_str().unwrap() != "ed25519" {
+            panic!("wrong curve");
+        }
+
+        let pubkey = obj["public"]
+            .as_str()
+            .unwrap()
+            .replace(".ed25519", "");
+        let pubkey = base64::decode(pubkey).unwrap();
+        let pubkey = PublicKey::from_bytes(pubkey.as_slice()).unwrap();
+
+        let privkey = obj["private"]
+            .as_str()
+            .unwrap()
+            .replace(".ed25519", "");
+        let privkey = base64::decode(privkey).unwrap();
+        let privkey = SecretKey::from_bytes(&privkey[00..32]).unwrap();
+
+        Keypair { public: pubkey, secret: privkey }
+    }
+}
 
 fn main() {
     let options = load_yaml!("options.yaml");
@@ -36,39 +76,11 @@ fn main() {
         secret_file.read_to_string(&mut secret).unwrap();
         let re = Regex::new(r"\s*#[^\n]*").unwrap();
         let secret = re.replace_all(secret.as_str(), "");
-        let secret = match json::parse(&secret).unwrap() {
-            json::JsonValue::Object(obj) => obj,
-            _ => panic!("invalid secret file"),
-        };
-
-        if secret.get("curve").unwrap().as_str().unwrap() != "ed25519" {
-            panic!("wrong curve");
-        }
-
-        let pubkey = secret
-            .get("public")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .replace(".ed25519", "");
-        let pubkey = base64::decode(pubkey).unwrap();
-        let pubkey = PublicKey::from_bytes(pubkey.as_slice()).unwrap();
-
-        let privkey = secret
-            .get("private")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .replace(".ed25519", "");
-        let privkey = base64::decode(privkey).unwrap();
-        let privkey = SecretKey::from_bytes(&privkey[00..32]).unwrap();
-
-        Keypair { public: pubkey, secret: privkey }
+        SSBKeypair::from_json(json::parse(&secret).unwrap())
     } else {
         let mut csprng = OsRng {};
         Keypair::generate(&mut csprng)
         // TODO: write this keypair to a fresh secret file
     };
-    println!("{:?}", keypair.public.to_bytes());
-    println!("{:?}", keypair.secret.to_bytes());
+    println!("{}", keypair.to_json().pretty(2));
 }
