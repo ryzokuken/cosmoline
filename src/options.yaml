@@ -9,3 +9,9 @@ args:
         value_name: FILE
         about: Sets a custom config file
         takes_value: true
+    - path:
+        short: p
+        long: path
+        value_name: DIRECTORY
+        about: Sets repository path to DIRECTORY
+        takes_value: true
