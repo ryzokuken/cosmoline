@@ -3,10 +3,7 @@ use json::{object, JsonValue};
 use rand::rngs::OsRng;
 use regex::Regex;
 
-use std::fs::File;
 use std::path::PathBuf;
-
-use std::io::prelude::*;
 
 pub trait SSBKeypair {
     fn to_json(&self) -> JsonValue;
@@ -55,9 +52,7 @@ impl SSBKeypair for Keypair {
 
     fn read_or_generate(path: PathBuf) -> Self {
         if path.exists() {
-            let mut secret_file = File::open(path).unwrap();
-            let mut secret = String::new();
-            secret_file.read_to_string(&mut secret).unwrap();
+            let secret = std::fs::read_to_string(path).unwrap();
             let re = Regex::new(r"\s*#[^\n]*").unwrap();
             let secret = re.replace_all(secret.as_str(), "");
             SSBKeypair::from_json(json::parse(&secret).unwrap())
