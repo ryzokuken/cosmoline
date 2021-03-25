@@ -1,8 +1,8 @@
 use clap::{load_yaml, App};
-use ed25519_dalek::{SecretKey, PublicKey, Keypair};
+use ed25519_dalek::{Keypair, PublicKey, SecretKey};
+use json::{object, JsonValue};
 use rand::rngs::OsRng;
 use regex::Regex;
-use json::{object, JsonValue};
 
 use std::fs::File;
 use std::path::PathBuf;
@@ -35,18 +35,23 @@ impl SSBKeypair for Keypair {
         let pubkey = obj["public"]
             .as_str()
             .unwrap()
-            .replace(".ed25519", "");
+            .strip_suffix(".ed25519")
+            .unwrap();
         let pubkey = base64::decode(pubkey).unwrap();
         let pubkey = PublicKey::from_bytes(pubkey.as_slice()).unwrap();
 
         let privkey = obj["private"]
             .as_str()
             .unwrap()
-            .replace(".ed25519", "");
+            .strip_suffix(".ed25519")
+            .unwrap();
         let privkey = base64::decode(privkey).unwrap();
         let privkey = SecretKey::from_bytes(&privkey[00..32]).unwrap();
 
-        Keypair { public: pubkey, secret: privkey }
+        Keypair {
+            public: pubkey,
+            secret: privkey,
+        }
     }
 
     fn read_or_generate(path: PathBuf) -> Self {
@@ -92,7 +97,7 @@ fn main() {
         None => match config.get("path") {
             Some(path) => PathBuf::from(path.as_str().unwrap()),
             None => dirs::home_dir().unwrap().join(".cosmoline"),
-        }
+        },
     };
     let keypair = Keypair::read_or_generate(path.join("secret"));
     println!("{}", keypair.to_json().pretty(2));
