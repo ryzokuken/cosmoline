@@ -59,7 +59,16 @@ impl SSBKeypair for Keypair {
         } else {
             let mut csprng = OsRng {};
             let keypair = Keypair::generate(&mut csprng);
-            std::fs::write(path, keypair.to_json().pretty(2)).unwrap();
+            let keypair_json = keypair.to_json();
+            std::fs::write(
+                path,
+                format!(
+                    include_str!("warning.txt"),
+                    keys = keypair_json.pretty(2),
+                    id = keypair_json["id"]
+                ),
+            )
+            .unwrap();
             keypair
         }
     }
