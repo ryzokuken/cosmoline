@@ -7,7 +7,7 @@ args:
         short: c
         long: config
         value_name: FILE
-        about: Sets a custom config file
+        about: Reads configuration from FILE
         takes_value: true
     - path:
         short: p
