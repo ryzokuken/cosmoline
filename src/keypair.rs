@@ -63,8 +63,9 @@ impl SSBKeypair for Keypair {
             SSBKeypair::from_json(json::parse(&secret).unwrap())
         } else {
             let mut csprng = OsRng {};
-            Keypair::generate(&mut csprng)
-            // TODO: write this keypair to a fresh secret file
+            let keypair = Keypair::generate(&mut csprng);
+            std::fs::write(path, keypair.to_json().pretty(2)).unwrap();
+            keypair
         }
     }
 }
