@@ -65,6 +65,15 @@ impl SSBKeypair for Keypair {
     }
 }
 
+type Config = toml::map::Map<String, toml::Value>;
+
+fn read_config(path: PathBuf) -> Config {
+    let mut file = File::open(path).unwrap();
+    let mut content = String::new();
+    file.read_to_string(&mut content).unwrap();
+    toml::from_str(content.as_str()).unwrap()
+}
+
 fn main() {
     let options = load_yaml!("options.yaml");
     let matches = App::from(options).get_matches();
@@ -76,10 +85,7 @@ fn main() {
             .join("cosmoline")
             .join("config.toml"),
     };
-    let mut config_file = File::open(config_file).unwrap();
-    let mut config = String::new();
-    config_file.read_to_string(&mut config).unwrap();
-    let config: toml::Value = toml::from_str(config.as_str()).unwrap();
+    let config = read_config(config_file);
 
     let path = match config.as_table().unwrap().get("path") {
         Some(path) => PathBuf::from(path.as_str().unwrap()),
