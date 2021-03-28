@@ -15,3 +15,8 @@ toml = "0.5.8"
 json = "0.12.4"
 base64 = "0.13.0"
 regex = "1.4.5"
+async-trait = "0.1.7"
+
+[dependencies.async-std]
+version = "1.6.2"
+features = ["attributes"]
