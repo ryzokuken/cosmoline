@@ -1,16 +1,21 @@
+
 use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use json::{object, JsonValue};
 use rand::rngs::OsRng;
 use regex::Regex;
 
-use std::path::PathBuf;
+use async_std::fs;
+use async_std::path::PathBuf;
+use async_trait::async_trait;
 
+#[async_trait]
 pub trait SSBKeypair {
     fn to_json(&self) -> JsonValue;
     fn from_json(obj: JsonValue) -> Self;
-    fn read_or_generate(path: PathBuf) -> Self;
+    async fn read_or_generate(path: PathBuf) -> Self;
 }
 
+#[async_trait]
 impl SSBKeypair for Keypair {
     fn to_json(&self) -> JsonValue {
         let pubstring = base64::encode(self.public.to_bytes());
@@ -50,9 +55,9 @@ impl SSBKeypair for Keypair {
         }
     }
 
-    fn read_or_generate(path: PathBuf) -> Self {
-        if path.exists() {
-            let secret = std::fs::read_to_string(path).unwrap();
+    async fn read_or_generate(path: PathBuf) -> Self {
+        if path.exists().await {
+            let secret = fs::read_to_string(path).await.unwrap();
             let re = Regex::new(r"\s*#[^\n]*").unwrap();
             let secret = re.replace_all(secret.as_str(), "");
             SSBKeypair::from_json(json::parse(&secret).unwrap())
@@ -60,14 +65,14 @@ impl SSBKeypair for Keypair {
             let mut csprng = OsRng {};
             let keypair = Keypair::generate(&mut csprng);
             let keypair_json = keypair.to_json();
-            std::fs::write(
+            fs::write(
                 path,
                 format!(
                     include_str!("warning.txt"),
                     keys = keypair_json.pretty(2),
                     id = keypair_json["id"]
                 ),
-            )
+            ).await
             .unwrap();
             keypair
         }
