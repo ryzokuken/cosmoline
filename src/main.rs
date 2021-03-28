@@ -39,7 +39,7 @@ async fn main() {
     let keypair = Keypair::read_or_generate(path.join("secret")).await;
     println!("{}", keypair.to_json().pretty(2));
 
-    let socket = UdpSocket::bind("0.0.0.0:8008").await.unwrap();
+    let socket = UdpSocket::bind(":::8008").await.unwrap();
     let mut buf = [0u8; 1024];
 
     loop {
