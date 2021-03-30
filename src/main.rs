@@ -1,6 +1,5 @@
 use clap::{load_yaml, App};
 use ed25519_dalek::Keypair;
-
 use async_std::fs;
 use async_std::net::UdpSocket;
 use async_std::path::PathBuf;

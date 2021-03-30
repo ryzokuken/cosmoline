@@ -1,9 +1,7 @@
-
 use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use json::{object, JsonValue};
 use rand::rngs::OsRng;
 use regex::Regex;
-
 use async_std::fs;
 use async_std::path::PathBuf;
 use async_trait::async_trait;
