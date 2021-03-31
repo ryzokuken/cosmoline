@@ -1,34 +1,67 @@
-use clap::{load_yaml, App};
-use ed25519_dalek::Keypair;
 use async_std::fs;
-use async_std::net::UdpSocket;
+use async_std::net::{IpAddr, UdpSocket};
 use async_std::path::PathBuf;
+use clap::{load_yaml, App};
+use ed25519_dalek::{Keypair, PublicKey};
 
 mod keypair;
-
-use keypair::SSBKeypair;
+use keypair::{SSBKeypair, SSBPublicKey};
 
 type Config = toml::map::Map<String, toml::Value>;
 
-#[derive(Debug)]
-struct Host {
-    protocol: String,
-    host: String,
-    port: String,
-    pubkey: String,
+enum Protocol {
+    Net,
+    Ws,
+    Wss,
 }
 
-fn parse_packet(packet: String) -> Host {
-    let mut packet = packet.splitn(4, ':');
-    let protocol = packet.next().unwrap();
-    let host = packet.next().unwrap();
-    let port = packet.next().unwrap().splitn(2, '~').next().unwrap();
-    let pubkey = packet.next().unwrap();
-    Host {
-        protocol: protocol.to_string(),
-        host: host.to_string(),
-        port: port.to_string(),
-        pubkey: pubkey.to_string(),
+struct Node {
+    protocol: Protocol,
+    host: IpAddr,
+    port: u16,
+    pubkey: PublicKey,
+}
+
+impl Node {
+    fn to_base64(&self) -> String {
+        let proto = match self.protocol {
+            Protocol::Net => "net",
+            Protocol::Ws => "ws",
+            Protocol::Wss => "wss",
+        };
+        format!(
+            "{}:{}:{}~shs:{}",
+            proto,
+            self.host,
+            self.port,
+            self.pubkey.to_base64()
+        )
+    }
+
+    fn from_base64(packet: &str) -> Self {
+        let mut packet = packet.splitn(4, ':');
+        let protocol = match packet.next().unwrap() {
+            "net" => Protocol::Net,
+            "ws" => Protocol::Ws,
+            "wss" => Protocol::Wss,
+            _ => panic!("unknown protocol"),
+        };
+        let host = IpAddr::V4(packet.next().unwrap().parse().unwrap());
+        let port = packet
+            .next()
+            .unwrap()
+            .splitn(2, '~')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let pubkey = SSBPublicKey::from_base64(packet.next().unwrap());
+        Node {
+            protocol,
+            host,
+            port,
+            pubkey,
+        }
     }
 }
 
@@ -39,10 +72,12 @@ async fn main() {
 
     let config_file = match options.value_of("config") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from(dirs::config_dir()
-            .unwrap()
-            .join("cosmoline")
-            .join("config.toml")),
+        None => PathBuf::from(
+            dirs::config_dir()
+                .unwrap()
+                .join("cosmoline")
+                .join("config.toml"),
+        ),
     };
     let config = fs::read_to_string(config_file).await.unwrap();
     let config: Config = toml::from_str(config.as_str()).unwrap();
@@ -64,7 +99,6 @@ async fn main() {
         let (amt, peer) = socket.recv_from(&mut buf).await.unwrap();
         let buf = &mut buf[..amt];
         let packet = String::from_utf8(buf.to_vec()).unwrap();
-        println!("{:?}", (peer, parse_packet(packet)));
-    };
-
+        println!("{} {}", peer, Node::from_base64(&packet).to_base64());
+    }
 }
