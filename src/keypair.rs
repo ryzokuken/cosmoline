@@ -1,10 +1,25 @@
+use async_std::fs;
+use async_std::path::PathBuf;
+use async_trait::async_trait;
 use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use json::{object, JsonValue};
 use rand::rngs::OsRng;
 use regex::Regex;
-use async_std::fs;
-use async_std::path::PathBuf;
-use async_trait::async_trait;
+
+pub trait SSBPublicKey {
+    fn to_base64(&self) -> String;
+    fn from_base64(string: &str) -> Self;
+}
+
+impl SSBPublicKey for PublicKey {
+    fn to_base64(&self) -> String {
+        base64::encode(self.to_bytes())
+    }
+
+    fn from_base64(string: &str) -> Self {
+        Self::from_bytes(&base64::decode(string).unwrap()).unwrap()
+    }
+}
 
 #[async_trait]
 pub trait SSBKeypair {
@@ -16,7 +31,7 @@ pub trait SSBKeypair {
 #[async_trait]
 impl SSBKeypair for Keypair {
     fn to_json(&self) -> JsonValue {
-        let pubstring = base64::encode(self.public.to_bytes());
+        let pubstring = self.public.to_base64();
         let privstring = base64::encode([self.secret.to_bytes(), self.public.to_bytes()].concat());
         object! {
             curve: "ed25519",
@@ -36,8 +51,7 @@ impl SSBKeypair for Keypair {
             .unwrap()
             .strip_suffix(".ed25519")
             .unwrap();
-        let pubkey = base64::decode(pubkey).unwrap();
-        let pubkey = PublicKey::from_bytes(pubkey.as_slice()).unwrap();
+        let pubkey = SSBPublicKey::from_base64(pubkey);
 
         let privkey = obj["private"]
             .as_str()
@@ -70,7 +84,8 @@ impl SSBKeypair for Keypair {
                     keys = keypair_json.pretty(2),
                     id = keypair_json["id"]
                 ),
-            ).await
+            )
+            .await
             .unwrap();
             keypair
         }

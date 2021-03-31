@@ -1,36 +1,16 @@
-use clap::{load_yaml, App};
-use ed25519_dalek::Keypair;
 use async_std::fs;
 use async_std::net::UdpSocket;
 use async_std::path::PathBuf;
+use clap::{load_yaml, App};
+use ed25519_dalek::Keypair;
 
 mod keypair;
-
 use keypair::SSBKeypair;
 
+mod network;
+use network::Peer;
+
 type Config = toml::map::Map<String, toml::Value>;
-
-#[derive(Debug)]
-struct Host {
-    protocol: String,
-    host: String,
-    port: String,
-    pubkey: String,
-}
-
-fn parse_packet(packet: String) -> Host {
-    let mut packet = packet.splitn(4, ':');
-    let protocol = packet.next().unwrap();
-    let host = packet.next().unwrap();
-    let port = packet.next().unwrap().splitn(2, '~').next().unwrap();
-    let pubkey = packet.next().unwrap();
-    Host {
-        protocol: protocol.to_string(),
-        host: host.to_string(),
-        port: port.to_string(),
-        pubkey: pubkey.to_string(),
-    }
-}
 
 #[async_std::main]
 async fn main() {
@@ -39,10 +19,12 @@ async fn main() {
 
     let config_file = match options.value_of("config") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from(dirs::config_dir()
-            .unwrap()
-            .join("cosmoline")
-            .join("config.toml")),
+        None => PathBuf::from(
+            dirs::config_dir()
+                .unwrap()
+                .join("cosmoline")
+                .join("config.toml"),
+        ),
     };
     let config = fs::read_to_string(config_file).await.unwrap();
     let config: Config = toml::from_str(config.as_str()).unwrap();
@@ -64,7 +46,10 @@ async fn main() {
         let (amt, peer) = socket.recv_from(&mut buf).await.unwrap();
         let buf = &mut buf[..amt];
         let packet = String::from_utf8(buf.to_vec()).unwrap();
-        println!("{:?}", (peer, parse_packet(packet)));
-    };
-
+        println!(
+            "{} {}",
+            peer,
+            Peer::from_discovery_packet(&packet).to_discovery_packet()
+        );
+    }
 }
