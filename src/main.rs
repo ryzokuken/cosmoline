@@ -1,69 +1,16 @@
 use async_std::fs;
-use async_std::net::{IpAddr, UdpSocket};
+use async_std::net::UdpSocket;
 use async_std::path::PathBuf;
 use clap::{load_yaml, App};
-use ed25519_dalek::{Keypair, PublicKey};
+use ed25519_dalek::Keypair;
 
 mod keypair;
-use keypair::{SSBKeypair, SSBPublicKey};
+use keypair::SSBKeypair;
+
+mod network;
+use network::Node;
 
 type Config = toml::map::Map<String, toml::Value>;
-
-enum Protocol {
-    Net,
-    Ws,
-    Wss,
-}
-
-struct Node {
-    protocol: Protocol,
-    host: IpAddr,
-    port: u16,
-    pubkey: PublicKey,
-}
-
-impl Node {
-    fn to_base64(&self) -> String {
-        let proto = match self.protocol {
-            Protocol::Net => "net",
-            Protocol::Ws => "ws",
-            Protocol::Wss => "wss",
-        };
-        format!(
-            "{}:{}:{}~shs:{}",
-            proto,
-            self.host,
-            self.port,
-            self.pubkey.to_base64()
-        )
-    }
-
-    fn from_base64(packet: &str) -> Self {
-        let mut packet = packet.splitn(4, ':');
-        let protocol = match packet.next().unwrap() {
-            "net" => Protocol::Net,
-            "ws" => Protocol::Ws,
-            "wss" => Protocol::Wss,
-            _ => panic!("unknown protocol"),
-        };
-        let host = IpAddr::V4(packet.next().unwrap().parse().unwrap());
-        let port = packet
-            .next()
-            .unwrap()
-            .splitn(2, '~')
-            .next()
-            .unwrap()
-            .parse()
-            .unwrap();
-        let pubkey = SSBPublicKey::from_base64(packet.next().unwrap());
-        Node {
-            protocol,
-            host,
-            port,
-            pubkey,
-        }
-    }
-}
 
 #[async_std::main]
 async fn main() {
