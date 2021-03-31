@@ -39,6 +39,7 @@ async fn peer_discovery_send(pubkey: Arc<String>) {
     loop {
         println!("Sending packet: {:?}", &msg);
         socket.send_to(&buf, "255.255.255.255:8008").await.unwrap();
+        socket.send_to(&buf, "[FF02::1]:8008").await.unwrap();
         task::sleep(std::time::Duration::from_secs(1)).await;
     }
 }
