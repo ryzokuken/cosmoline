@@ -8,7 +8,7 @@ mod keypair;
 use keypair::SSBKeypair;
 
 mod network;
-use network::Node;
+use network::Peer;
 
 type Config = toml::map::Map<String, toml::Value>;
 
@@ -46,6 +46,10 @@ async fn main() {
         let (amt, peer) = socket.recv_from(&mut buf).await.unwrap();
         let buf = &mut buf[..amt];
         let packet = String::from_utf8(buf.to_vec()).unwrap();
-        println!("{} {}", peer, Node::from_base64(&packet).to_base64());
+        println!(
+            "{} {}",
+            peer,
+            Peer::from_discovery_packet(&packet).to_discovery_packet()
+        );
     }
 }

@@ -9,15 +9,15 @@ enum Protocol {
     Wss,
 }
 
-pub struct Node {
+pub struct Peer {
     protocol: Protocol,
     host: IpAddr,
     port: u16,
     pubkey: PublicKey,
 }
 
-impl Node {
-    pub fn to_base64(&self) -> String {
+impl Peer {
+    pub fn to_discovery_packet(&self) -> String {
         let proto = match self.protocol {
             Protocol::Net => "net",
             Protocol::Ws => "ws",
@@ -32,7 +32,7 @@ impl Node {
         )
     }
 
-    pub fn from_base64(packet: &str) -> Self {
+    pub fn from_discovery_packet(packet: &str) -> Self {
         let mut packet = packet.splitn(4, ':');
         let protocol = match packet.next().unwrap() {
             "net" => Protocol::Net,
@@ -50,7 +50,7 @@ impl Node {
             .parse()
             .unwrap();
         let pubkey = SSBPublicKey::from_base64(packet.next().unwrap());
-        Node {
+        Peer {
             protocol,
             host,
             port,
