@@ -11,52 +11,94 @@ enum Protocol {
     Wss,
 }
 
-pub struct Peer {
+enum Handshake {
+    Shs,
+    Shs2,
+}
+
+struct Address {
     protocol: Protocol,
     host: IpAddr,
     port: u16,
-    pubkey: PublicKey,
+    handshake: Handshake,
+}
+
+pub struct Peer {
+    addresses: Vec<Address>,
+    key: PublicKey,
 }
 
 impl Peer {
+    // TODO: do this properly
     pub fn to_discovery_packet(&self) -> String {
-        let proto = match self.protocol {
-            Protocol::Net => "net",
-            Protocol::Ws => "ws",
-            Protocol::Wss => "wss",
-        };
-        format!(
-            "{}:{}:{}~shs:{}",
-            proto,
-            self.host,
-            self.port,
-            self.pubkey.to_base64()
-        )
+        let parts: Vec<String> = self
+            .addresses
+            .iter()
+            .map(|address| {
+                let proto = match address.protocol {
+                    Protocol::Net => "net",
+                    Protocol::Ws => "ws",
+                    Protocol::Wss => "wss",
+                };
+                let hs = match address.handshake {
+                    Handshake::Shs => "shs",
+                    Handshake::Shs2 => "shs2",
+                };
+                format!(
+                    "{}:{}:{}~{}:{}",
+                    proto,
+                    address.host,
+                    address.port,
+                    hs,
+                    self.key.to_base64(),
+                )
+            })
+            .collect();
+        parts.join(";")
     }
 
+    // TODO: do this properly
     pub fn from_discovery_packet(packet: &str) -> Self {
-        let mut packet = packet.splitn(4, ':');
-        let protocol = match packet.next().unwrap() {
-            "net" => Protocol::Net,
-            "ws" => Protocol::Ws,
-            "wss" => Protocol::Wss,
-            _ => panic!("unknown protocol"),
-        };
-        let host = IpAddr::V4(packet.next().unwrap().parse().unwrap());
-        let port = packet
-            .next()
-            .unwrap()
-            .splitn(2, '~')
-            .next()
-            .unwrap()
-            .parse()
-            .unwrap();
-        let pubkey = SSBPublicKey::from_base64(packet.next().unwrap());
+        let mut key = Option::None;
+        let addresses = packet
+            .split(';')
+            .map(|address| {
+                let mut address = address.splitn(2, '~');
+
+                let mut network = address.next().unwrap().splitn(3, ':');
+                let protocol = match network.next().unwrap() {
+                    "net" => Protocol::Net,
+                    "ws" => Protocol::Ws,
+                    "wss" => Protocol::Wss,
+                    _ => panic!("unknown protocol"),
+                };
+                let host = IpAddr::V4(network.next().unwrap().parse().unwrap());
+                let port = network.next().unwrap().parse().unwrap();
+
+                let mut info = address.next().unwrap().splitn(2, ':');
+                let handshake = match info.next().unwrap() {
+                    "shs" => Handshake::Shs,
+                    "shs2" => Handshake::Shs2,
+                    _ => panic!("unknown handshake"),
+                };
+                let pubkey = SSBPublicKey::from_base64(info.next().unwrap());
+                if key == Option::None {
+                    key = Some(pubkey);
+                } else if key.unwrap() != pubkey {
+                    panic!("unexpected pubkey");
+                }
+
+                Address {
+                    protocol,
+                    host,
+                    port,
+                    handshake,
+                }
+            })
+            .collect();
         Peer {
-            protocol,
-            host,
-            port,
-            pubkey,
+            addresses,
+            key: key.unwrap(),
         }
     }
 }
