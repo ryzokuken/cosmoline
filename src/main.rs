@@ -1,6 +1,6 @@
-use async_std::{fs, task};
 use async_std::path::PathBuf;
 use async_std::sync::Arc;
+use async_std::{fs, task};
 use clap::{load_yaml, App};
 use ed25519_dalek::Keypair;
 
@@ -8,8 +8,6 @@ mod keypair;
 use keypair::{SSBKeypair, SSBPublicKey};
 
 mod network;
-
-type Config = toml::map::Map<String, toml::Value>;
 
 #[async_std::main]
 async fn main() {
@@ -26,7 +24,7 @@ async fn main() {
         ),
     };
     let config = fs::read_to_string(config_file).await.unwrap();
-    let config: Config = toml::from_str(config.as_str()).unwrap();
+    let config: toml::map::Map<String, toml::Value> = toml::from_str(config.as_str()).unwrap();
 
     let path = match options.value_of("path") {
         Some(path) => PathBuf::from(path),

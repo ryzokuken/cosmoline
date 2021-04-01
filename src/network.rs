@@ -1,6 +1,6 @@
-use async_std::task;
 use async_std::net::{IpAddr, UdpSocket};
 use async_std::sync::Arc;
+use async_std::task;
 use ed25519_dalek::PublicKey;
 
 use crate::keypair::SSBPublicKey;
@@ -31,8 +31,7 @@ pub struct Peer {
 impl Peer {
     // TODO: do this properly
     pub fn to_discovery_packet(&self) -> String {
-        let parts: Vec<String> = self
-            .addresses
+        self.addresses
             .iter()
             .map(|address| {
                 let proto = match address.protocol {
@@ -53,8 +52,8 @@ impl Peer {
                     self.key.to_base64(),
                 )
             })
-            .collect();
-        parts.join(";")
+            .collect::<Vec<String>>()
+            .join(";")
     }
 
     // TODO: do this properly
