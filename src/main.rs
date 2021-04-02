@@ -4,10 +4,11 @@ use async_std::{fs, task};
 use clap::{load_yaml, App};
 use ed25519_dalek::Keypair;
 
+mod discovery;
 mod keypair;
-use keypair::{SSBKeypair, SSBPublicKey};
+mod peer;
 
-mod network;
+use keypair::{SSBKeypair, SSBPublicKey};
 
 #[async_std::main]
 async fn main() {
@@ -38,6 +39,6 @@ async fn main() {
 
     let pubkey = keypair.public.to_base64();
 
-    task::spawn(network::peer_discovery_recv());
-    task::spawn(network::peer_discovery_send(Arc::new(pubkey))).await;
+    task::spawn(discovery::recv());
+    task::spawn(discovery::send(Arc::new(pubkey))).await;
 }
