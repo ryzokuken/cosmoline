@@ -23,12 +23,27 @@ struct Address {
     handshake: Handshake,
 }
 
+impl Address {
+    fn new(protocol: Protocol, host: IpAddr, port: u16, handshake: Handshake) -> Self {
+        Self {
+            protocol,
+            host,
+            port,
+            handshake,
+        }
+    }
+}
+
 pub struct Peer {
     addresses: Vec<Address>,
     key: PublicKey,
 }
 
 impl Peer {
+    fn new(addresses: Vec<Address>, key: PublicKey) -> Self {
+        Self { addresses, key }
+    }
+
     // TODO: do this properly
     pub fn to_discovery_packet(&self) -> String {
         self.addresses
@@ -120,7 +135,16 @@ pub async fn peer_discovery_recv() {
 
 pub async fn peer_discovery_send(pubkey: Arc<String>) {
     let socket = UdpSocket::bind(":::0").await.unwrap();
-    let msg = format!("net:1.2.3.4:8023~shs:{}", &pubkey);
+    let msg = Peer::new(
+        Vec::from([Address::new(
+            Protocol::Net,
+            "1.2.3.4".parse().unwrap(),
+            8023,
+            Handshake::Shs,
+        )]),
+        PublicKey::from_base64(pubkey.as_str()),
+    )
+    .to_discovery_packet();
     let buf = msg.as_bytes();
 
     socket.set_broadcast(true).unwrap();
