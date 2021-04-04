@@ -35,7 +35,6 @@ async fn main() {
         },
     };
     let keypair = Keypair::read_or_generate(path.join("secret")).await;
-    println!("{}", keypair.to_json().pretty(2));
 
     let (psend, precv) = async_std::channel::unbounded();
     task::spawn(async move { discovery::recv(psend).await });
