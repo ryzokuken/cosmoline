@@ -37,8 +37,11 @@ async fn main() {
     let keypair = Keypair::read_or_generate(path.join("secret")).await;
     println!("{}", keypair.to_json().pretty(2));
 
-    let pubkey = keypair.public.to_base64();
+    let (psend, precv) = async_std::channel::unbounded();
+    task::spawn(async move { discovery::recv(psend).await });
+    task::spawn(discovery::send(Arc::new(keypair.public.to_base64())));
 
-    task::spawn(discovery::recv());
-    task::spawn(discovery::send(Arc::new(pubkey))).await;
+    while let Ok(peer) = precv.recv().await {
+        println!("{}", peer.to_discovery_packet());
+    };
 }

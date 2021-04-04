@@ -3,12 +3,15 @@ use async_std::sync::Arc;
 use async_std::task;
 use ed25519_dalek::PublicKey;
 
+use std::collections::HashSet;
+
 use crate::keypair::SSBPublicKey;
 use crate::peer::{Address, Handshake, Peer, Protocol};
 
-pub async fn recv() {
+pub async fn recv(sender: async_std::channel::Sender<Peer>) {
     let socket = UdpSocket::bind(":::8008").await.unwrap();
     let mut buf = [0u8; 1024];
+    let mut old = HashSet::new();
 
     loop {
         let (amt, peer) = socket.recv_from(&mut buf).await.unwrap();
@@ -19,6 +22,11 @@ pub async fn recv() {
             peer,
             Peer::from_discovery_packet(&packet).to_discovery_packet()
         );
+        let peer = Peer::from_discovery_packet(packet.as_str());
+        if !old.contains(&peer) {
+            old.insert(peer.clone());
+            sender.send(peer).await.unwrap();
+        }
     }
 }
 

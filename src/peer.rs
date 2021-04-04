@@ -1,19 +1,24 @@
 use async_std::net::IpAddr;
 use ed25519_dalek::PublicKey;
 
+use std::hash::{Hash, Hasher};
+
 use crate::keypair::SSBPublicKey;
 
+#[derive(Clone)]
 pub enum Protocol {
     Net,
     Ws,
     Wss,
 }
 
+#[derive(Clone)]
 pub enum Handshake {
     Shs,
     Shs2,
 }
 
+#[derive(Clone)]
 pub struct Address {
     protocol: Protocol,
     host: IpAddr,
@@ -32,6 +37,7 @@ impl Address {
     }
 }
 
+#[derive(Clone)]
 pub struct Peer {
     addresses: Vec<Address>,
     key: PublicKey,
@@ -114,3 +120,16 @@ impl Peer {
         }
     }
 }
+
+impl Hash for Peer {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.to_bytes().hash(state);
+    }
+}
+
+impl std::cmp::PartialEq for Peer {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+impl std::cmp::Eq for Peer {}
