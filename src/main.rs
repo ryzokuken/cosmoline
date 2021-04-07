@@ -1,15 +1,14 @@
-use async_std::{fs, task};
 use async_std::path::PathBuf;
 use async_std::sync::Arc;
+use async_std::{fs, task};
 use clap::{load_yaml, App};
 use ed25519_dalek::Keypair;
 
+mod discovery;
 mod keypair;
+mod peer;
+
 use keypair::{SSBKeypair, SSBPublicKey};
-
-mod network;
-
-type Config = toml::map::Map<String, toml::Value>;
 
 #[async_std::main]
 async fn main() {
@@ -26,7 +25,7 @@ async fn main() {
         ),
     };
     let config = fs::read_to_string(config_file).await.unwrap();
-    let config: Config = toml::from_str(config.as_str()).unwrap();
+    let config: toml::map::Map<String, toml::Value> = toml::from_str(config.as_str()).unwrap();
 
     let path = match options.value_of("path") {
         Some(path) => PathBuf::from(path),
@@ -36,10 +35,12 @@ async fn main() {
         },
     };
     let keypair = Keypair::read_or_generate(path.join("secret")).await;
-    println!("{}", keypair.to_json().pretty(2));
 
-    let pubkey = keypair.public.to_base64();
+    let (psend, precv) = async_std::channel::unbounded();
+    task::spawn(async move { discovery::recv(psend).await });
+    task::spawn(discovery::send(Arc::new(keypair.public.to_base64())));
 
-    task::spawn(network::peer_discovery_recv());
-    task::spawn(network::peer_discovery_send(Arc::new(pubkey))).await;
+    while let Ok(peer) = precv.recv().await {
+        println!("{}", peer.to_discovery_packet());
+    };
 }
